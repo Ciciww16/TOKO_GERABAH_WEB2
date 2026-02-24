@@ -1,0 +1,22 @@
+.dashboard {
+    min-height: 100vh;
+    background: #fce4ec;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.dashboard h1 {
+    color: #d81b60;
+}
+
+.dashboard button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #ec407a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
