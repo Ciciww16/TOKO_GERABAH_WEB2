@@ -270,7 +270,7 @@ const produk = [
 const pageStyle={
   minHeight:"100vh",
   padding:"30px",
-  backgroundImage:"url('/bg.jpeg')",
+  backgroundImage:"url('/images.jpg')",
   backgroundSize:"cover",
   backgroundPosition:"center",
   backgroundRepeat:"no-repeat"
