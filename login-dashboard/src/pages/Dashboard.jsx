@@ -144,8 +144,7 @@ function Dashboard() {
             onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
 
-            <div style={diskonBadge}>DISKON</div>
-
+            
             <img src={item.image} style={imgStyle} alt={item.nama} />
 
             <h4>{item.nama}</h4>
@@ -253,6 +252,87 @@ function Dashboard() {
         </div>
       )}
 
+      {/* FOOTER */}
+<div style={{
+  marginTop: "50px",
+  padding: "40px",
+  background: darkMode ? "#111" : "#f2f2f2",
+  color: darkMode ? "white" : "#222",
+  borderRadius: "12px",
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+  gap: "20px"
+}}>
+
+  {/* ABOUT */}
+  <div>
+    <h3>Toko Gerabah Ciciww</h3>
+    <p style={{ fontSize: "14px" }}>
+      Lorem ipsum dolor sit amet consectetur adipisicing elit. Ad alias impedit est deserunt exercitationem pariatur ipsam harum magni culpa commodi?
+    </p>
+    <p style={{ fontSize: "14px", marginTop:"8px" }}>📞 +62 123-4567-8912</p>
+    <p style={{ fontSize: "14px" }}>✉ person-email@gmail.com</p>
+  </div>
+
+  {/* MENU */}
+  <div>
+    <h4>Menu</h4>
+    <ul style={{ listStyle: "none", padding:0, margin:0, fontSize:"14px" }}>
+      <li>Home</li>
+      <li>Kelas</li>
+      <li>Testimonial</li>
+      <li>FAQ</li>
+      <li>Syarat & Ketentuan</li>
+    </ul>
+  </div>
+
+  {/* SUBSCRIBE */}
+  <div>
+    <h4>Subscribe untuk info Menarik</h4>
+    <div style={{ marginTop:"8px" }}>
+      <input
+        type="email"
+        placeholder="Subscribe..."
+        style={{ padding:"8px", borderRadius:"8px", border:"1px solid #ccc", width:"100%", marginBottom:"8px" }}
+      />
+      <button
+        style={{ padding:"8px 16px", borderRadius:"8px", border:"none", background:"#ffff", color:"white", width:"100%" }}
+        onClick={() => alert("Terima kasih sudah subscribe!")}
+      >
+        Subscribe
+      </button>
+    </div>
+  </div>
+
+  {/* COPYRIGHT */}
+  <div style={{ gridColumn:"1/-1", textAlign:"center", marginTop:"20px", fontSize:"12px", opacity:0.7 }}>
+    © Copyright 2026 by Suci Disakiti, All Right Reserved
+  </div>
+</div>
+
+{/* NAVBAR DI ATAS */}
+<div style={{
+  display: "flex",
+  justifyContent: "center",
+  gap: "24px",
+  padding: "12px 0",
+  background: darkMode ? "#111" : "#fff",
+  color: darkMode ? "white" : "#222",
+  position: "sticky",
+  top: 0,
+  zIndex: 999,
+  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+  borderBottomLeftRadius: "12px",
+  borderBottomRightRadius: "12px"
+}}>
+  <span style={{ cursor:"pointer" }} onClick={()=>window.scrollTo({top:0, behavior:"smooth"})}>Home</span>
+  <span style={{ cursor:"pointer" }} onClick={()=>alert("Menu Kelas")}>Kelas</span>
+  <span style={{ cursor:"pointer" }} onClick={()=>alert("Menu Testimonial")}>Testimonial</span>
+  <span style={{ cursor:"pointer" }} onClick={()=>alert("Menu FAQ")}>FAQ</span>
+  <span style={{ cursor:"pointer" }} onClick={()=>alert("Syarat & Ketentuan")}>Syarat & Ketentuan</span>
+</div>
+
+
     </div>
   );
 }
@@ -260,16 +340,18 @@ function Dashboard() {
 /* DATA PRODUK */
 
 const produk = [
-{ id:1, nama:"Vas Bunga Kecil", harga:50000, deskripsi:"Vas kecil", image:"/produk/vas-bunga.jpg"},
-{ id:2, nama:"Piring Makan", harga:30000, deskripsi:"Piring 8 inch", image:"/produk/piring.png"},
-{ id:3, nama:"Cangkir Kopi", harga:25000, deskripsi:"Cangkir kopi", image:"/produk/cangkir.jpg"},
-{ id:4, nama:"Patung Buddha", harga:150000, deskripsi:"Dekorasi", image:"/produk/patung buddha.jpg"},
-{ id:5, nama:"Tempat Lilin", harga:45000, deskripsi:"Tempat lilin", image:"/produk/tempat lilin.jpg"},
-{ id:6, nama:"Mangkok Sup", harga:35000, deskripsi:"Mangkok", image:"/produk/mangkuk sup.jpg"},
-{ id:7, nama:"Pot Kaktus", harga:40000, deskripsi:"Pot kecil", image:"/produk/pot kaktus.jpg"},
+{ id:1, nama:"Vas Bunga Kecil", harga:50000, deskripsi:"Vas kecil", image:"/produk/vas kecil.avif"},
+{ id:2, nama:"Piring Makan", harga:30000, deskripsi:"Piring 8 inch", image:"/produk/piringg.jpg"},
+{ id:3, nama:"Cangkir Kopi", harga:25000, deskripsi:"Cangkir kopi", image:"/produk/cangkir.jpeg"},
+{ id:4, nama:"Guci Bunga", harga:150000, deskripsi:"Dekorasi", image:"/produk/guci.jpg"},
+{ id:5, nama:"Tempat Lilin", harga:45000, deskripsi:"Tempat lilin", image:"/produk/tempat lilinn.avif"},
+{ id:6, nama:"Mangkok Sup", harga:35000, deskripsi:"Mangkok", image:"/produk/mangkuk.jpg"},
+{ id:7, nama:"Pot Kaktus", harga:40000, deskripsi:"Pot kecil", image:"/produk/pot kktus.jpg"},
 { id:8, nama:"Hiasan Dinding", harga:120000, deskripsi:"Hiasan", image:"/produk/hiasan dinding.webp"},
-{ id:9, nama:"Lampu Meja", harga:200000, deskripsi:"Lampu Keramik", image:"/produk/lampu meja.jpg"},
-{ id:10, nama:"Asbak Mini", harga:20000, deskripsi:"Asbak Mini", image:"/produk/asbak mini.jpg"},
+{ id:9, nama:"Lampu Meja", harga:200000, deskripsi:"Lampu Keramik", image:"/produk/lampuu.jpg"},
+{ id:10, nama:"Asbak Mini", harga:20000, deskripsi:"Asbak Mini", image:"/produk/asbak.webp"},
+{ id:11, nama:"Teko Keramik", harga:90000, deskripsi:"Teko minum keramik", image:"/produk/teko.jpeg"},
+{ id:12, nama:"Celengan Keramik", harga:60000, deskripsi:"Celengan unik", image:"/produk/celengan.avif"}
 ];
 
 /* STYLE */
@@ -427,16 +509,7 @@ const darkBtn={
   borderRadius:"8px"
 };
 
-const diskonBadge={
-  position:"absolute",
-  top:"10px",
-  left:"10px",
-  background:"red",
-  color:"white",
-  padding:"3px 8px",
-  borderRadius:"6px",
-  fontSize:"12px"
-};
+
 
 const checkoutBg={
   position:"fixed",
