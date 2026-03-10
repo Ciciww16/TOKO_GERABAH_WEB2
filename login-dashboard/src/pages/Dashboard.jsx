@@ -58,13 +58,20 @@ function Dashboard() {
   };
 
   return (
-    <div style={{...pageStyle, background: darkMode ? "#222" : pageStyle.background}}>
+    <div
+  style={{
+    ...pageStyle,
+    backgroundImage: `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${darkMode ? bgDark : bgLight})`
+  }}
+>
+
+
       
       {notif && <div style={notifStyle}>{notif}</div>}
 
       {/* HEADER */}
       <div style={headerStyle}>
-        <h1 style={{ color: darkMode ? "white" : "black" }}>TOKO GERABAH CICIWW</h1>
+        <h1 style={{ color: darkMode ? "white" : "#222" }}>TOKO GERABAH CICIWW</h1>
 
         <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
 
@@ -267,14 +274,21 @@ const produk = [
 
 /* STYLE */
 
-const pageStyle={
-  minHeight:"100vh",
-  padding:"30px",
-  backgroundImage:"url('/images.jpg')",
-  backgroundSize:"cover",
-  backgroundPosition:"center",
-  backgroundRepeat:"no-repeat"
+const pageStyle = {
+  minHeight: "100vh",
+  padding: "30px",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
+  backgroundAttachment: "fixed" 
 };
+
+
+
+const bgLight =  "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=2560"; 
+const bgDark =   "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1920";
+
+
 
 
 const headerStyle={
@@ -291,7 +305,7 @@ const gridStyle={
 
 const cardStyle={
   position:"relative",
-  background:"background:rgba(255,255,255,0.3)",
+  background:"rgba(255,255,255,0.3)",
   backdropFilter:"blur(8px)",
   padding:"16px",
   borderRadius:"14px",
@@ -392,8 +406,10 @@ const notifStyle={
   background:"#000",
   color:"white",
   padding:"10px 16px",
-  borderRadius:"10px"
+  borderRadius:"10px",
+  zIndex:9999
 };
+
 
 const logoutStyle={
   background:"#000",
