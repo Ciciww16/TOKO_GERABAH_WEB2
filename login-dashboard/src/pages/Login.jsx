@@ -23,7 +23,6 @@ function Login() {
 
       const data = await res.json();
 
-      // ❌ GAGAL
       if (!res.ok) {
         setNotif(data.msg || "Login gagal");
         setShowNotif(true);
@@ -31,7 +30,6 @@ function Login() {
         return;
       }
 
-      // ✅ BERHASIL (TOKEN 1 BARIS)
       alert(`Login berhasil\n\nToken:\n${data.token.slice(0, 25)}...`);
 
       setToken(data.token);
@@ -43,6 +41,7 @@ function Login() {
           token: data.token,
         },
       });
+
     } catch (err) {
       console.error(err);
       setNotif("Terjadi kesalahan server");
@@ -131,7 +130,7 @@ const styles = {
     marginBottom: "12px",
     borderRadius: "8px",
     border: "1px solid #e843b475",
-    boxSizing: "border-box", // 🔥 INI KUNCI SAMA PANJANG
+    boxSizing: "border-box", 
   },
   button: {
     width: "100%",
