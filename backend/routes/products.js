@@ -1,111 +1,146 @@
-const express = require("express");
+// backend/routes/products.js
+import express from 'express';
+import db from '../db.js';
+import auth from '../middleware/auth.js';
+import { isAdmin } from '../middleware/role.js';
+
 const router = express.Router();
-const pool = require("../db");
-const auth = require("../middleware/auth");
-const role = require("../middleware/role");
 
-// ================= GET ALL PRODUCTS → Semua yang login =================
-router.get("/", auth, async(req, res) => {
+// ============================================
+// GET ALL PRODUCTS
+// ============================================
+router.get('/', auth, async(req, res) => {
     try {
-        const result = await pool.query(`
-      SELECT p.id, p.name, p.category_id, c.name AS category_name, p.price, p.stock, p.description, p.is_active
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      WHERE p.is_active IS DISTINCT FROM false
-      ORDER BY p.id ASC
-    `);
-        res.json({ msg: "All active products", data: result.rows });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-// ================= GET PRODUCT BY ID → Semua yang login =================
-router.get("/:id", auth, async(req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query(`
-      SELECT p.id, p.name, p.category_id, c.name AS category_name, p.price, p.stock, p.description, p.is_active
-      FROM products p
-      LEFT JOIN categories c ON c.id = p.category_id
-      WHERE p.id = $1 AND p.is_active IS DISTINCT FROM false
-    `, [id]);
-
-        if (result.rows.length === 0)
-            return res.status(404).json({ msg: "Product not found" });
-
-        res.json({ msg: "Product found", data: result.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-// ================= CREATE PRODUCT → Admin only =================
-router.post("/", auth, role(["admin"]), async(req, res) => {
-    const { name, category_id, price, stock, description } = req.body;
-
-    if (!name || !price || !stock) {
-        return res.status(400).json({ msg: "name, price, and stock are required" });
-    }
-
-    try {
-        const result = await pool.query(
-            `INSERT INTO products (name, category_id, price, stock, description, is_active)
-       VALUES ($1, $2, $3, $4, $5, true) RETURNING *`, [name, category_id || null, price, stock, description || null]
+        const products = await db.query(
+            'SELECT id, name, price, stock, description, category_id FROM products ORDER BY id'
         );
-        res.status(201).json({ msg: "Product created", product: result.rows[0] });
+        res.json(products.rows);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error('Get products error:', err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
-// ================= UPDATE PRODUCT → Admin only =================
-router.put("/:id", auth, role(["admin"]), async(req, res) => {
-    const { id } = req.params;
-    const { name, category_id, price, stock, description } = req.body;
-
+// ============================================
+// GET PRODUCT BY ID
+// ============================================
+router.get('/:id', auth, async(req, res) => {
     try {
-        const result = await pool.query(
-            `UPDATE products SET
-         name = COALESCE($1, name),
-         category_id = COALESCE($2, category_id),
-         price = COALESCE($3, price),
-         stock = COALESCE($4, stock),
-         description = COALESCE($5, description)
-       WHERE id = $6
-       RETURNING *`, [name, category_id, price, stock, description, id]
+        const { id } = req.params;
+        const product = await db.query(
+            'SELECT id, name, price, stock, description, category_id FROM products WHERE id = $1', [id]
         );
 
-        if (result.rows.length === 0)
-            return res.status(404).json({ msg: "Product not found" });
+        if (product.rows.length === 0) {
+            return res.status(404).json({ msg: 'Produk tidak ditemukan' });
+        }
 
-        res.json({ msg: "Product updated", product: result.rows[0] });
+        res.json(product.rows[0]);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error('Get product error:', err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
-// ================= DELETE PRODUCT → Admin only (soft delete) =================
-router.delete("/:id", auth, role(["admin"]), async(req, res) => {
-    const { id } = req.params;
-
+// ============================================
+// GET PRODUCT STOCK
+// ============================================
+router.get('/:id/stock', auth, async(req, res) => {
     try {
-        const result = await pool.query(
-            `UPDATE products SET is_active = false WHERE id = $1 RETURNING *`, [id]
+        const { id } = req.params;
+        const result = await db.query(
+            'SELECT stock FROM products WHERE id = $1', [id]
         );
 
-        if (result.rows.length === 0)
-            return res.status(404).json({ msg: "Product not found" });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ msg: 'Produk tidak ditemukan' });
+        }
 
-        res.json({ msg: "Product berhasil dihapus", product: result.rows[0] });
+        res.json({ stock: result.rows[0].stock });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error('Get stock error:', err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
-module.exports = router;
+// ============================================
+// CREATE PRODUCT (ADMIN ONLY)
+// ============================================
+router.post('/', auth, isAdmin, async(req, res) => {
+    try {
+        const { name, category_id, price, stock, description } = req.body;
+
+        if (!name || !price) {
+            return res.status(400).json({ msg: 'Nama dan harga harus diisi' });
+        }
+
+        const newProduct = await db.query(
+            'INSERT INTO products (name, category_id, price, stock, description) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, price, stock', [name, category_id || null, price, stock || 0, description || '']
+        );
+
+        res.status(201).json({
+            msg: 'Produk berhasil ditambahkan',
+            product: newProduct.rows[0]
+        });
+    } catch (err) {
+        console.error('Create product error:', err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// ============================================
+// UPDATE PRODUCT (ADMIN ONLY)
+// ============================================
+router.put('/:id', auth, isAdmin, async(req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, category_id, price, stock, description } = req.body;
+
+        const updatedProduct = await db.query(
+            'UPDATE products SET name = $1, category_id = $2, price = $3, stock = $4, description = $5 WHERE id = $6 RETURNING id', [name, category_id, price, stock, description, id]
+        );
+
+        if (updatedProduct.rows.length === 0) {
+            return res.status(404).json({ msg: 'Produk tidak ditemukan' });
+        }
+
+        res.json({ msg: 'Produk berhasil diupdate' });
+    } catch (err) {
+        console.error('Update product error:', err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// ============================================
+// DELETE PRODUCT (ADMIN ONLY)
+// ============================================
+router.delete('/:id', auth, isAdmin, async(req, res) => {
+    try {
+        const { id } = req.params;
+
+        const inTransactions = await db.query(
+            'SELECT id FROM transaction_item WHERE product_id = $1 LIMIT 1', [id]
+        );
+
+        if (inTransactions.rows.length > 0) {
+            return res.status(400).json({
+                msg: 'Produk tidak bisa dihapus karena sudah pernah ditransaksikan'
+            });
+        }
+
+        const deleted = await db.query(
+            'DELETE FROM products WHERE id = $1 RETURNING id', [id]
+        );
+
+        if (deleted.rows.length === 0) {
+            return res.status(404).json({ msg: 'Produk tidak ditemukan' });
+        }
+
+        res.json({ msg: 'Produk berhasil dihapus' });
+    } catch (err) {
+        console.error('Delete product error:', err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+export default router;

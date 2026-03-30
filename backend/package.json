@@ -1,18 +1,45 @@
 {
-    "name": "tokogerabah2-api",
+    "name": "sc-pottery-backend",
     "version": "1.0.0",
+    "description": "Backend for SC Pottery Store",
     "main": "index.js",
     "type": "module",
     "scripts": {
-        "start": "node index.js"
+        "start": "node index.js",
+        "dev": "nodemon index.js",
+        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+        "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "db:migrate": "node scripts/migrate.js",
+        "db:seed": "node scripts/seed.js",
+        "db:backup": "pg_dump -U postgres toko_gerabah3 > backup.sql"
     },
     "dependencies": {
-        "bcryptjs": "^3.0.3",
-        "body-parser": "^2.2.0",
-        "cors": "^2.8.6",
-        "dotenv": "^17.2.3",
-        "express": "^5.2.1",
+        "bcrypt": "^5.1.1",
+        "compression": "^1.7.5",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "express-rate-limit": "^7.5.0",
+        "helmet": "^8.0.0",
         "jsonwebtoken": "^9.0.2",
-        "pg": "^8.18.0"
-    }
+        "multer": "^1.4.5-lts.1",
+        "pg": "^8.13.1"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.21.0",
+        "eslint": "^9.21.0",
+        "jest": "^29.7.0",
+        "nodemon": "^3.1.9",
+        "prettier": "^3.5.2",
+        "supertest": "^7.0.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "keywords": ["ecommerce", "pottery", "ceramic", "backend"],
+    "author": "Your Name",
+    "license": "ISC"
 }

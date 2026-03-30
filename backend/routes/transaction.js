@@ -1,127 +1,194 @@
-const express = require("express");
+// backend/routes/transaction.js
+import express from 'express';
+import db from '../db.js';
+import auth from '../middleware/auth.js';
+
 const router = express.Router();
-const pool = require("../db");
-const auth = require("../middleware/auth");
-const role = require("../middleware/role");
 
-// GET ALL → Admin only
-router.get("/", auth, role(["admin"]), async(req, res) => {
+// ============================================
+// GET TRANSACTIONS BY USER ID
+// ============================================
+router.get('/user/:userId', auth, async(req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT id, user_id, total, transaction_date FROM transaction ORDER BY id ASC"
-        );
-        res.json({ msg: "Semua transactions", data: result.rows });
+        const { userId } = req.params;
+
+        console.log(`Fetching transactions for user ID: ${userId}`);
+
+        // Query untuk mendapatkan transaksi user
+        const transactions = await db.query(`
+      SELECT 
+        t.id, 
+        t.user_id, 
+        t.total, 
+        t.transaction_date,
+        u.name as user_name
+      FROM transaction t
+      JOIN users u ON t.user_id = u.id
+      WHERE t.user_id = $1
+      ORDER BY t.transaction_date DESC
+    `, [userId]);
+
+        console.log(`Found ${transactions.rows.length} transactions`);
+
+        // Untuk setiap transaksi, ambil itemnya
+        const result = await Promise.all(transactions.rows.map(async(tx) => {
+            const items = await db.query(`
+        SELECT 
+          ti.id,
+          ti.product_id,
+          p.name as product_name,
+          ti.quantity,
+          ti.subtotal
+        FROM transaction_item ti
+        JOIN products p ON ti.product_id = p.id
+        WHERE ti.transaction_id = $1
+      `, [tx.id]);
+
+            return {
+                id: tx.id,
+                user_id: tx.user_id,
+                user_name: tx.user_name,
+                total: parseFloat(tx.total),
+                transaction_date: tx.transaction_date,
+                items: items.rows,
+                invoice: `INV-${new Date(tx.transaction_date).getFullYear()}${String(new Date(tx.transaction_date).getMonth()+1).padStart(2,'0')}${String(new Date(tx.transaction_date).getDate()).padStart(2,'0')}-${tx.id}`
+            };
+        }));
+
+        res.json(result);
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error('❌ Get user transactions error:', err);
+        res.status(500).json({
+            msg: 'Server error',
+            error: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
-// GET BY ID → Customer can only see their own, Admin can see all
-router.get("/:id", auth, async(req, res) => {
-    const { id } = req.params;
+// ============================================
+// GET ALL TRANSACTIONS (ADMIN & CASHIER)
+// ============================================
+router.get('/', auth, async(req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT id, user_id, total, transaction_date FROM transaction WHERE id=$1", [id]
-        );
-        if (result.rows.length === 0)
-            return res.status(404).json({ msg: "Transaction tidak ditemukan" });
+        if (req.user.role === 'customer') {
+            return res.status(403).json({ msg: 'Akses ditolak' });
+        }
 
-        const tx = result.rows[0];
-        if (req.user.role === "customer" && req.user.id !== tx.user_id)
-            return res.status(403).json({ msg: "Akses ditolak" });
+        const transactions = await db.query(`
+      SELECT 
+        t.id, 
+        t.user_id, 
+        t.total, 
+        t.transaction_date,
+        u.name as customer_name
+      FROM transaction t
+      JOIN users u ON t.user_id = u.id
+      ORDER BY t.transaction_date DESC
+    `);
 
-        res.json({ msg: "Transaction ditemukan", transaction: tx });
+        const result = await Promise.all(transactions.rows.map(async(tx) => {
+            const items = await db.query(`
+        SELECT 
+          ti.id,
+          ti.product_id,
+          p.name as product_name,
+          ti.quantity,
+          ti.subtotal
+        FROM transaction_item ti
+        JOIN products p ON ti.product_id = p.id
+        WHERE ti.transaction_id = $1
+      `, [tx.id]);
+
+            return {
+                id: tx.id,
+                user_id: tx.user_id,
+                customer: tx.customer_name,
+                total: parseFloat(tx.total),
+                transaction_date: tx.transaction_date,
+                items: items.rows,
+                invoice: `INV-${new Date(tx.transaction_date).getFullYear()}${String(new Date(tx.transaction_date).getMonth()+1).padStart(2,'0')}${String(new Date(tx.transaction_date).getDate()).padStart(2,'0')}-${tx.id}`
+            };
+        }));
+
+        res.json(result);
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error('❌ Get all transactions error:', err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
-// CREATE → Kasir & Customer
-router.post("/", auth, role(["kasir", "customer"]), async(req, res) => {
-    const { user_id, items } = req.body;
-    if (!user_id || !items || items.length === 0)
-        return res
-            .status(400)
-            .json({ msg: "user_id and items required" });
+// ============================================
+// CREATE TRANSACTION (CHECKOUT)
+// ============================================
+router.post('/', auth, async(req, res) => {
+    const client = await db.connect();
 
-    const client = await pool.connect();
     try {
-        await client.query("BEGIN");
+        const { user_id, total, items } = req.body;
 
-        // Validasi product_id sebelum insert
-        for (const item of items) {
-            const prodCheck = await client.query(
-                "SELECT id, stock FROM products WHERE id=$1", [item.product_id]
-            );
-            if (prodCheck.rows.length === 0)
-                throw new Error(
-                    `Product dengan id ${item.product_id} tidak ada`
-                );
+        console.log('📦 Transaction request:', { user_id, total, items });
 
-            // Optional: cek stock cukup
-            if (prodCheck.rows[0].stock < item.quantity)
-                throw new Error(
-                    `Stock untuk product id ${item.product_id} tidak cukup`
-                );
+        if (!user_id || !total || !items || items.length === 0) {
+            return res.status(400).json({ msg: 'Data transaksi tidak lengkap' });
         }
 
-        // Hitung total
-        const total = items.reduce(
-            (sum, item) => sum + parseFloat(item.subtotal),
-            0
+        await client.query('BEGIN');
+
+        // INSERT KE TABLE TRANSACTION
+        const transactionResult = await client.query(
+            'INSERT INTO transaction (user_id, total, transaction_date) VALUES ($1, $2, NOW()) RETURNING id', [user_id, total]
         );
 
-        // Insert transaction
-        const txResult = await client.query(
-            "INSERT INTO transaction (user_id, total) VALUES ($1,$2) RETURNING *", [user_id, total]
-        );
-        const tx = txResult.rows[0];
+        const transactionId = transactionResult.rows[0].id;
+        console.log('✅ Transaction created with ID:', transactionId);
 
-        // Insert transaction_item & update stock
+        // INSERT KE TRANSACTION_ITEM DAN UPDATE STOK
         for (const item of items) {
-            await client.query(
-                "INSERT INTO transaction_item (transaction_id, product_id, quantity, subtotal) VALUES ($1,$2,$3,$4)", [tx.id, item.product_id, item.quantity, item.subtotal]
+            // Cek stok
+            const stockCheck = await client.query(
+                'SELECT stock FROM products WHERE id = $1', [item.product_id]
             );
+
+            if (stockCheck.rows.length === 0) {
+                throw new Error(`Produk ID ${item.product_id} tidak ditemukan`);
+            }
+
+            if (stockCheck.rows[0].stock < item.quantity) {
+                throw new Error(`Stok tidak cukup untuk produk ID ${item.product_id}`);
+            }
+
+            // Insert item
             await client.query(
-                "UPDATE products SET stock = stock - $1 WHERE id = $2", [item.quantity, item.product_id]
+                'INSERT INTO transaction_item (transaction_id, product_id, quantity, subtotal) VALUES ($1, $2, $3, $4)', [transactionId, item.product_id, item.quantity, item.subtotal]
+            );
+
+            // Update stok
+            await client.query(
+                'UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]
             );
         }
 
-        await client.query("COMMIT");
-        res.status(201).json({ msg: "Transaksi dibuat", transaction: tx });
+        await client.query('COMMIT');
+
+        const date = new Date();
+        const invoice = `INV-${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}-${transactionId}`;
+
+        res.status(201).json({
+            msg: 'Transaksi berhasil',
+            transaction_id: transactionId,
+            invoice
+        });
+
     } catch (err) {
-        await client.query("ROLLBACK");
-        console.error(err);
-        res.status(500).json({ msg: err.message || "Server Error" });
+        await client.query('ROLLBACK');
+        console.error('❌ Transaction error:', err);
+        res.status(500).json({ msg: `Server error: ${err.message}` });
     } finally {
         client.release();
     }
 });
 
-// UPDATE → Kasir only
-router.put("/:id", auth, role(["kasir"]), async(req, res) => {
-    const { id } = req.params;
-    const { user_id, total } = req.body;
-    if (!user_id && !total)
-        return res.status(400).json({ msg: "user_id or total required" });
-
-    try {
-        const exist = await pool.query(
-            "SELECT * FROM transaction WHERE id=$1", [id]
-        );
-        if (exist.rows.length === 0)
-            return res.status(404).json({ msg: "Transaction tidak ditemukan" });
-
-        const updated = await pool.query(
-            "UPDATE transaction SET user_id=COALESCE($1,user_id), total=COALESCE($2,total) WHERE id=$3 RETURNING *", [user_id, total, id]
-        );
-        res.json({ msg: "Transaksi diperbarui", transaction: updated.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-module.exports = router;
+export default router;

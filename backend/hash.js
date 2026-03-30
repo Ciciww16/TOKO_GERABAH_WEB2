@@ -1,31 +1,28 @@
-import bcrypt from "bcrypt";
+// backend/hash-passwords.js
+import bcrypt from 'bcrypt';
+import db from './db.js';
 
 const users = [
-    { name: "Rizky", password: "passRizky" },
-    { name: "Nadia", password: "passNadia" },
-    { name: "Fahri", password: "passFahri" },
-    { name: "Laila", password: "passLaila" },
-    { name: "Rangga", password: "passRangga" },
-    { name: "Maya", password: "passMaya" },
-    { name: "Aditya", password: "passAditya" },
-    { name: "Sabrina", password: "passSabrina" },
-    { name: "Bayu", password: "passBayu" },
-    { name: "Diana", password: "passDiana" }
+    { name: 'Ciciw', password: 'passCiciw' },
+    { name: 'Sapedtx', password: 'passSapedtx' },
+    { name: 'Tsabitha', password: 'passTsabitha' },
+    { name: 'Ncitra', password: 'passNcitra' },
+    { name: 'Rinda', password: 'passRinda' }
 ];
 
-const saltRounds = 10;
-
-async function hashAll() {
-    console.log("=== HASIL HASH PASSWORD ===\n");
-
-    for (const user of users) {
-        const hashed = await bcrypt.hash(user.password, saltRounds);
-
-        console.log(`Nama     : ${user.name}`);
-        console.log(`Password : ${user.password}`);
-        console.log(`Hash     : ${hashed}`);
-        console.log("----------------------------------");
+async function hashPasswords() {
+    try {
+        for (const user of users) {
+            const hash = await bcrypt.hash(user.password, 10);
+            await db.query('UPDATE users SET password = $1 WHERE name = $2', [hash, user.name]);
+            console.log(`✅ ${user.name} -> ${hash.substring(0, 30)}...`);
+        }
+        console.log('\n✨ Semua password berhasil di-hash!');
+    } catch (err) {
+        console.error('❌ Error:', err);
+    } finally {
+        process.exit();
     }
 }
 
-hashAll();
+hashPasswords();

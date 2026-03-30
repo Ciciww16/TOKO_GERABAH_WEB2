@@ -1,109 +1,143 @@
-const express = require("express");
+// backend/routes/categories.js
+import express from 'express';
+import db from '../db.js';
+import auth from '../middleware/auth.js';
+import { isAdmin } from '../middleware/role.js';
+
 const router = express.Router();
-const pool = require("../db");
-const auth = require("../middleware/auth");
-const role = require("../middleware/role");
 
-// ================= GET ALL CATEGORIES → Semua yang login =================
-router.get("/", auth, async(req, res) => {
+// ============================================
+// GET ALL CATEGORIES
+// ============================================
+router.get('/', auth, async(req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT id, name, description FROM categories ORDER BY id ASC"
+        const categories = await db.query(
+            'SELECT id, name, description FROM categories ORDER BY id'
         );
-        res.json({ msg: "Semua Kategori", data: result.rows });
+
+        const categoriesWithCount = await Promise.all(
+            categories.rows.map(async(cat) => {
+                const productCount = await db.query(
+                    'SELECT COUNT(*) FROM products WHERE category_id = $1', [cat.id]
+                );
+                return {
+                    id: cat.id,
+                    name: cat.name,
+                    description: cat.description,
+                    product_count: parseInt(productCount.rows[0].count)
+                };
+            })
+        );
+
+        res.json(categoriesWithCount);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error('Get categories error:', err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
-// ================= GET CATEGORY BY ID → Semua yang login =================
-router.get("/:id", auth, async(req, res) => {
-    const { id } = req.params;
+// ============================================
+// GET CATEGORY BY ID
+// ============================================
+router.get('/:id', auth, async(req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT id, name, description FROM categories WHERE id=$1", [id]
+        const { id } = req.params;
+        const category = await db.query(
+            'SELECT id, name, description FROM categories WHERE id = $1', [id]
         );
-        if (result.rows.length === 0)
-            return res.status(404).json({ msg: "Kategori tidak ditemukan" });
 
-        res.json({ msg: "Kategori ditemukan", data: result.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-// ================= CREATE CATEGORY → Admin only =================
-router.post("/", auth, role(["admin"]), async(req, res) => {
-    const { name, description } = req.body;
-    if (!name) return res.status(400).json({ msg: "Name is required" });
-
-    try {
-        const result = await pool.query(
-            "INSERT INTO categories (name, description) VALUES ($1,$2) RETURNING *", [name, description || null]
-        );
-        res.status(201).json({ msg: "Category ditambahkan", category: result.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-// ================= UPDATE CATEGORY → Admin only =================
-router.put("/:id", auth, role(["admin"]), async(req, res) => {
-    const { id } = req.params;
-    const { name, description } = req.body;
-
-    try {
-        const result = await pool.query(
-            "UPDATE categories SET name=COALESCE($1,name), description=COALESCE($2,description) WHERE id=$3 RETURNING *", [name, description, id]
-        );
-        if (result.rows.length === 0)
-            return res.status(404).json({ msg: "Category tidak ditemukan" });
-
-        res.json({ msg: "Category diperbarui", category: result.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    }
-});
-
-// ================= DELETE CATEGORY → Admin only =================
-router.delete("/:id", auth, role(["admin"]), async(req, res) => {
-    const { id } = req.params;
-    const client = await pool.connect();
-
-    try {
-        await client.query("BEGIN");
-
-        // Ambil semua produk di kategori ini
-        const products = await client.query("SELECT id FROM products WHERE category_id = $1", [id]);
-
-        for (const prod of products.rows) {
-            // Hapus semua transaction_item yang pakai produk ini
-            await client.query("DELETE FROM transaction_item WHERE product_id = $1", [prod.id]);
+        if (category.rows.length === 0) {
+            return res.status(404).json({ msg: 'Kategori tidak ditemukan' });
         }
 
-        // Hapus semua produk di kategori
-        await client.query("DELETE FROM products WHERE category_id = $1", [id]);
-
-        // Hapus kategori
-        const result = await client.query("DELETE FROM categories WHERE id=$1 RETURNING *", [id]);
-        if (result.rows.length === 0) {
-            await client.query("ROLLBACK");
-            return res.status(404).json({ msg: "Category tidak ditemukan" });
-        }
-
-        await client.query("COMMIT");
-        res.json({ msg: "Category dan semua produk terkait berhasil dihapus", category: result.rows[0] });
+        res.json(category.rows[0]);
     } catch (err) {
-        await client.query("ROLLBACK");
-        console.error(err);
-        res.status(500).json({ msg: "Server Error" });
-    } finally {
-        client.release();
+        console.error('Get category error:', err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
-module.exports = router;
+// ============================================
+// CREATE CATEGORY (ADMIN ONLY)
+// ============================================
+router.post('/', auth, isAdmin, async(req, res) => {
+    try {
+        const { name, description } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ msg: 'Nama kategori harus diisi' });
+        }
+
+        const newCategory = await db.query(
+            'INSERT INTO categories (name, description) VALUES ($1, $2) RETURNING id, name, description', [name, description || '']
+        );
+
+        res.status(201).json({
+            msg: 'Kategori berhasil ditambahkan',
+            category: newCategory.rows[0]
+        });
+    } catch (err) {
+        console.error('Create category error:', err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// ============================================
+// UPDATE CATEGORY (ADMIN ONLY)
+// ============================================
+router.put('/:id', auth, isAdmin, async(req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description } = req.body;
+
+        const updatedCategory = await db.query(
+            'UPDATE categories SET name = $1, description = $2 WHERE id = $3 RETURNING id, name, description', [name, description, id]
+        );
+
+        if (updatedCategory.rows.length === 0) {
+            return res.status(404).json({ msg: 'Kategori tidak ditemukan' });
+        }
+
+        res.json({
+            msg: 'Kategori berhasil diupdate',
+            category: updatedCategory.rows[0]
+        });
+    } catch (err) {
+        console.error('Update category error:', err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// ============================================
+// DELETE CATEGORY (ADMIN ONLY)
+// ============================================
+router.delete('/:id', auth, isAdmin, async(req, res) => {
+    try {
+        const { id } = req.params;
+
+        const products = await db.query(
+            'SELECT id FROM products WHERE category_id = $1 LIMIT 1', [id]
+        );
+
+        if (products.rows.length > 0) {
+            return res.status(400).json({
+                msg: 'Kategori tidak bisa dihapus karena masih memiliki produk'
+            });
+        }
+
+        const deleted = await db.query(
+            'DELETE FROM categories WHERE id = $1 RETURNING id', [id]
+        );
+
+        if (deleted.rows.length === 0) {
+            return res.status(404).json({ msg: 'Kategori tidak ditemukan' });
+        }
+
+        res.json({ msg: 'Kategori berhasil dihapus' });
+    } catch (err) {
+        console.error('Delete category error:', err);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+export default router;

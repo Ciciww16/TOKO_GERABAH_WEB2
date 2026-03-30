@@ -1,6 +1,7 @@
-const jwt = require("jsonwebtoken");
+// backend/middleware/auth.js
+import jwt from 'jsonwebtoken';
 
-module.exports = function(req, res, next) {
+export default function(req, res, next) {
     const authHeader = req.header("Authorization");
     if (!authHeader) return res.status(401).json({ msg: "No token, authorization denied" });
 
@@ -8,9 +9,9 @@ module.exports = function(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        req.user = decoded; // {id, name, role}
+        req.user = decoded;
         next();
     } catch (err) {
         return res.status(401).json({ msg: "Token salah" });
     }
-};
+}
